@@ -8,6 +8,24 @@
 
 int main()
 {
+    const char IP_SERV[] = "";
+    const int PORT_NUM = 0;
+    const short BUFF_SIZE = 1024;
+
+    int erStat;
+
+    in_addr ip_to_num;
+    erStat = inet_pton(AF_INET, IP_SERV, &ip_to_num);
+
+    if (erStat <= 0) {
+
+        std::cout <<
+        "Error in IP translation to special numeric format"
+        << std:: endl;
+
+        return 1;
+    }
+
     WSADATA wsData;
 
     int erStat = WSAStartup(MAKEWORD(2, 2), &wsData);
@@ -36,16 +54,6 @@ int main()
     else {
 
         std::cout << "Server socket initialization is OK\n";
-    }
-
-    in_addr ip_to_num;
-    erStat = inet_pton(AF_INET, "127.0.0.1", &ip_to_num);
-
-    if (erStat <= 0) {
-
-        std::cout <<
-        "Error in IP translation to special numeric format\n";
-        return 1;
     }
 
     sockaddr_in servInfo;
@@ -91,7 +99,6 @@ int main()
     }
 
     sockaddr_in clientInfo;
-
     ZeroMemory(&clientInfo, sizeof(clientInfo));
 
     int clientInfo_size = sizeof(clientInfo);
@@ -114,9 +121,17 @@ int main()
         std::cout <<
         "Connection to a client established successfully"
         << std::endl;
+
+        char clientIP[22];
+
+        inet_ntop(AF_INET, &clientInfo.sin_addr, clientIP, INET_ADDRSTRLEN);
+
+        std::cout <<
+        "Client connected with IP addres" <<
+        clientIP << std::endl;
     }
 
-    vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
+    std::vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
     short packet_size = 0;
 
     while (true) {
@@ -125,7 +140,7 @@ int main()
         std::cout << "Client's message: " << servBuff.data() << std::endl;
 
         std::cout << "Your (host) message: ";
-        fgets(clientBuff.data(), clientBuff.data(), stdin);
+        fgets(clientBuff.data(), clientBuff.size(), stdin);
 
         if (clientBuff[0] == 'x' && clientBuff[1] == 'x' && clientBuff[2] == 'x') {
 
@@ -150,6 +165,10 @@ int main()
             return 1;
         }
     }
+
+    closesocket(ServSock);
+    closesocket(ClientConn);
+    WSACleanup();
 
     return 0;
 }
