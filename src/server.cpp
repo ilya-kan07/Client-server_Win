@@ -116,5 +116,40 @@ int main()
         << std::endl;
     }
 
+    vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
+    short packet_size = 0;
+
+    while (true) {
+
+        packet_size = recv(ClientConn, servBuff.data(), servBuff.size(), 0);
+        std::cout << "Client's message: " << servBuff.data() << std::endl;
+
+        std::cout << "Your (host) message: ";
+        fgets(clientBuff.data(), clientBuff.data(), stdin);
+
+        if (clientBuff[0] == 'x' && clientBuff[1] == 'x' && clientBuff[2] == 'x') {
+
+            shutdown(ClientConn, SD_BOTH);
+            closesocket(ServSock);
+            closesocket(ClientConn);
+            WSACleanup();
+            return 0;
+        }
+
+        packet_size = send(ClientConn, clientBuff.data(), clientBuff.size(), 0);
+
+        if (packet_size == SOCKET_ERROR) {
+
+            std::cout <<
+            "Can't send message to Client. Error # "
+            << WSAGetLastError() << std::endl;
+
+            closesocket(ServSock);
+            closesocket(ClientConn);
+            WSACleanup();
+            return 1;
+        }
+    }
+
     return 0;
 }
