@@ -6,6 +6,8 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+using namespace std;
+
 int main()
 {
     const char IP_SERV[] = "";
@@ -19,9 +21,9 @@ int main()
 
     if (erStat <= 0) {
 
-        std::cout <<
-        "Error in IP translation to special numeric format"
-        << std:: endl;
+        cout <<
+            "Error in IP translation to special numeric format"
+        << endl;
 
         return 1;
     }
@@ -32,20 +34,20 @@ int main()
 
     if (erStat != 0) {
 
-        std::cout << "Error WinSock version initialization # ";
-        std::cout << WSAGetLastError();
+        cout << "Error WinSock version initialization # ";
+        cout << WSAGetLastError() << endl;
         return 1;
     }
     else {
-        std::cout << "WinSock initialization is OK" << std::endl;
+        cout << "WinSock initialization is OK" << endl;
     }
 
     SOCKET ServSock = socket(AF_INET, SOCK_STREAM, 0);
 
     if (ServSock == INVALID_SOCKET) {
 
-        std::cout << "Error initialization socket # "
-        << WSAGetLastError() << std::endl;
+        cout << "Error initialization socket # "
+        << WSAGetLastError() << endl;
 
         closesocket(ServSock);
         WSACleanup();
@@ -53,7 +55,7 @@ int main()
     }
     else {
 
-        std::cout << "Server socket initialization is OK\n";
+        cout << "Server socket initialization is OK\n";
     }
 
     sockaddr_in servInfo;
@@ -67,9 +69,8 @@ int main()
 
     if (erStat != 0) {
 
-        std::cout <<
-        "Error Socket binding to server info. Error # " <<
-        WSAGetLastError() << std::endl;
+        cout << "Error Socket binding to server info. Error # "
+        << WSAGetLastError() << endl;
 
         closesocket(ServSock);
         WSACleanup();
@@ -77,17 +78,16 @@ int main()
     }
     else {
 
-        std::cout <<
-        "Binding socket to server info is OK" << std::endl;
+        cout << "Binding socket to server info is OK" << endl;
     }
 
     erStat = listen(ServSock, SOMAXCONN);
 
     if (erStat != 0) {
 
-        std::cout <<
-        "Can't start to listen to. Error # " <<
-        WSAGetLastError() << std::endl;
+        cout <<
+        "Can't start to listen to. Error # "
+        << WSAGetLastError() << endl;
 
         closesocket(ServSock);
         WSACleanup();
@@ -95,7 +95,7 @@ int main()
     }
     else {
 
-        std::cout << "Listening ..." << std::endl;
+        cout << "Listening ..." << endl;
     }
 
     sockaddr_in clientInfo;
@@ -107,9 +107,8 @@ int main()
 
     if (ClientConn == INVALID_SOCKET) {
 
-        std::cout <<
-        "Client detected, but can't connect to a client. Error # "
-        << WSAGetLastError() << std::endl;
+        cout << "Client detected, but can't connect to a client. Error # "
+        << WSAGetLastError() << endl;
 
         closesocket(ServSock);
         closesocket(ClientConn);
@@ -118,28 +117,26 @@ int main()
     }
     else {
 
-        std::cout <<
-        "Connection to a client established successfully"
-        << std::endl;
+        cout << "Connection to a client established successfully\n";
 
         char clientIP[22];
 
         inet_ntop(AF_INET, &clientInfo.sin_addr, clientIP, INET_ADDRSTRLEN);
 
-        std::cout <<
-        "Client connected with IP addres" <<
-        clientIP << std::endl;
+        cout <<
+        "Client connected with IP addres"
+        << clientIP << endl;
     }
 
-    std::vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
+    vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
     short packet_size = 0;
 
     while (true) {
 
         packet_size = recv(ClientConn, servBuff.data(), servBuff.size(), 0);
-        std::cout << "Client's message: " << servBuff.data() << std::endl;
+        cout << "Client's message: " << servBuff.data() << endl;
 
-        std::cout << "Your (host) message: ";
+        cout << "Your (host) message: ";
         fgets(clientBuff.data(), clientBuff.size(), stdin);
 
         if (clientBuff[0] == 'x' && clientBuff[1] == 'x' && clientBuff[2] == 'x') {
@@ -155,7 +152,7 @@ int main()
 
         if (packet_size == SOCKET_ERROR) {
 
-            std::cout <<
+            cout <<
             "Can't send message to Client. Error # "
             << WSAGetLastError() << std::endl;
 
