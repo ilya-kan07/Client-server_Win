@@ -32,7 +32,7 @@ void handle_clients(SOCKET ClientConn) {
         }
 
         buffer[packet_size] = '\0';
-        cout << "Client's message" << buffer.data() << endl;
+        cout << "Client's message: " << buffer.data() << endl;
 
         clients_mutex.lock();
         for (SOCKET client : clients) {
