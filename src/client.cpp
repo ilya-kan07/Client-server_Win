@@ -12,7 +12,7 @@ int main () {
 
     // Key constants
     const char SERVER_IP[] = "127.0.0.1";
-    const char SERVER_PORT_NUM = 1234;
+    const short SERVER_PORT_NUM = 1234;
     const short BUFF_SIZE = 1024;
 
     int erStat;

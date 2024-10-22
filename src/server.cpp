@@ -3,17 +3,58 @@
 #include <ws2tcpip.h>
 #include <stdio.h>
 #include <vector>
+#include <thread>
+#include <mutex>
 
 #pragma comment(lib, "Ws2_32.lib")
 
 using namespace std;
 
+const char IP_SERV[] = "127.0.0.1";
+const int PORT_NUM = 1234;
+const short BUFF_SIZE = 1024;
+
+vector<SOCKET> clients;
+mutex clients_mutex;
+
+void handle_clients(SOCKET ClientConn) {
+
+    vector <char> buffer(BUFF_SIZE);
+    short packet_size = 0;
+
+    while (true) {
+
+        packet_size = recv(ClientConn, buffer.data(), buffer.size() - 1, 0);
+
+        if (packet_size == SOCKET_ERROR || packet_size == 0) {
+            cout << "Client disconenected or error occurred." << endl;
+            break;
+        }
+
+        buffer[packet_size] = '\0';
+        cout << "Client's message" << buffer.data() << endl;
+
+        clients_mutex.lock();
+        for (SOCKET client : clients) {
+            if (client != ClientConn) {
+                send(client, buffer.data(), packet_size, 0);
+            }
+        }
+        clients_mutex.unlock();
+
+        if (buffer[0] == 'x' && buffer[1] == 'x' && buffer[2] == 'x') {
+            cout << "Client requested disconnection." << endl;
+            break;
+        }
+    }
+
+    clients_mutex.lock();
+    clients.erase(remove(clients.begin(), clients.end(), ClientConn), clients.end());
+    clients_mutex.unlock();
+}
+
 int main()
 {
-    const char IP_SERV[] = "127.0.0.1";
-    const int PORT_NUM = 1234;
-    const short BUFF_SIZE = 1024;
-
     int erStat;
 
     // IP in string format to numeric format
@@ -103,77 +144,33 @@ int main()
         cout << "Listening ..." << endl;
     }
 
-    // Client socket creation and acception in case of connection
-    sockaddr_in clientInfo;
-    ZeroMemory(&clientInfo, sizeof(clientInfo));
-
-    int clientInfo_size = sizeof(clientInfo);
-
-    SOCKET ClientConn = accept(ServSock, (sockaddr*)&clientInfo, &clientInfo_size);
-
-    if (ClientConn == INVALID_SOCKET) {
-
-        cout << "Client detected, but can't connect to a client. Error # "
-        << WSAGetLastError() << endl;
-
-        closesocket(ServSock);
-        closesocket(ClientConn);
-        WSACleanup();
-        return 1;
-    }
-    else {
-
-        cout << "Connection to a client established successfully\n";
-
-        char clientIP[22];
-
-        inet_ntop(AF_INET, &clientInfo.sin_addr, clientIP, INET_ADDRSTRLEN);
-
-        cout <<
-        "Client connected with IP addres"
-        << clientIP << endl;
-    }
-
-    // Exchange text data between Server and Client
-    vector<char> servBuff(BUFF_SIZE), clientBuff(BUFF_SIZE);
-    short packet_size = 0;
-
     while (true) {
+        sockaddr_in clientInfo;
+        ZeroMemory(&clientInfo, sizeof(clientInfo));
+        int clientInfo_size = sizeof(clientInfo);
 
-        packet_size = recv(ClientConn, servBuff.data(), servBuff.size(), 0);
-        cout << "Client's message: " << servBuff.data() << endl;
+        SOCKET ClientConn = accept(ServSock, (sockaddr*)&clientInfo, &clientInfo_size);
 
-        cout << "Your (host) message: ";
-        fgets(clientBuff.data(), clientBuff.size(), stdin);
-
-        // Disconnection if client send "xxx"
-        if (clientBuff[0] == 'x' && clientBuff[1] == 'x' && clientBuff[2] == 'x') {
-
-            shutdown(ClientConn, SD_BOTH);
-            closesocket(ServSock);
-            closesocket(ClientConn);
-            WSACleanup();
-            return 0;
+        if (ClientConn == INVALID_SOCKET) {
+            cout << "Client detected, but can't connect. Error # ";
+            cout << WSAGetLastError << endl;
+            continue;
         }
 
-        packet_size = send(ClientConn, clientBuff.data(), clientBuff.size(), 0);
+        char clientIP[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &clientInfo.sin_addr, clientIP, INET_ADDRSTRLEN);
+        cout << "Client connected with IP address : ";
+        cout << clientIP << endl;
 
-        if (packet_size == SOCKET_ERROR) {
+        clients_mutex.lock();
+        clients.push_back(ClientConn);
+        clients_mutex.unlock();
 
-            cout <<
-            "Can't send message to Client. Error # "
-            << WSAGetLastError() << std::endl;
-
-            closesocket(ServSock);
-            closesocket(ClientConn);
-            WSACleanup();
-            return 1;
-        }
+        thread clientThread(handle_clients, ClientConn);
+        clientThread.detach();
     }
 
     closesocket(ServSock);
-    closesocket(ClientConn);
     WSACleanup();
-
     return 0;
 }
