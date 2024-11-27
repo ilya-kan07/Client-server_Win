@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <vector>
 #include <thread>
+#include <random>
+#include <chrono>
+#include <string>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -12,6 +15,27 @@ using namespace std;
 const char SERVER_IP[] = "127.0.0.1";
 const short SERVER_PORT_NUM = 1234;
 const short BUFF_SIZE = 1024;
+
+void sendMetrics(SOCKET ClientSock) {
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> mouseUsageDist(0, 60);
+    uniform_int_distribution<> hotkeyUsageDist(0, 10);
+
+    while (true) {
+        string cpuLoad = "CPU," + to_string(rand() % 100);
+        string mouseUsage = "Mouse," + to_string(mouseUsageDist(gen));
+        string hotkeyUsage = "Hotkeys," + to_string(hotkeyUsageDist(gen));
+
+        vector<string> metrics = {cpuLoad, mouseUsage, hotkeyUsage};
+        for (const auto& metric : metrics) {
+            send(ClientSock, metric.c_str(), metric.size(), 0);
+            this_thread::sleep_for(chrono::milliseconds(200));
+        }
+
+        this_thread::sleep_for(chrono::minutes(1));
+    }
+}
 
 void receiveMessages(SOCKET ClientSock) {
 
@@ -106,38 +130,11 @@ int main () {
         cout << "Ready to send a message to Server" << endl;
     }
 
-    // Starting a separate thread to receive messages from the server
-    thread receiveThread(receiveMessages, ClientSock);
-    receiveThread.detach();
+    //thread receiveThread(receiveMessages, ClientSock);
+    //receiveThread.detach();
 
-    // Entering and sending messages to the server
-    vector<char> clientBuff(BUFF_SIZE);
-    short packet_size = 0;
-
-    while (true) {
-
-        cout << "Your message to Server: ";
-        fgets(clientBuff.data(), clientBuff.size(), stdin);
-
-        // Disconnect if Client send "xxx"
-        if (clientBuff[0] == 'x' && clientBuff[1] == 'x' && clientBuff[2] == 'x') {
-            shutdown(ClientSock, SD_BOTH);
-            closesocket(ClientSock);
-            WSACleanup();
-            return 0;
-        }
-
-        packet_size = send(ClientSock, clientBuff.data(), strlen(clientBuff.data()), 0);
-
-        if (packet_size == SOCKET_ERROR) {
-
-            cout << "Can't receive message from Server. Error #";
-            cout << WSAGetLastError() << endl;
-            closesocket(ClientSock);
-            WSACleanup();
-            return 1;
-        }
-    }
+    thread metricsThread(sendMetrics, ClientSock);
+    metricsThread.join();
 
     closesocket(ClientSock);
     WSACleanup();
