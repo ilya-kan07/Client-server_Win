@@ -35,7 +35,7 @@ void write_to_csv(const string& client_ip, const string& timestamp, const string
 }
 
 void handle_clients(SOCKET ClientConn, string client_ip) {
-
+    vector<string> metric_buffer;
     vector <char> buffer(BUFF_SIZE);
     short packet_size = 0;
 
@@ -66,8 +66,18 @@ void handle_clients(SOCKET ClientConn, string client_ip) {
 
         write_to_csv(client_ip, timestamp.str(), metric_name, value);
 
-        string notification = "[" + timestamp.str() + "] The data is received and recorded in csv.\0";
-        send(ClientConn, notification.c_str(), notification.size(), 0);
+        metric_buffer.push_back(message);
+
+        if (metric_buffer.size() == 3) {
+            string notification = "|" + timestamp.str() + "| Received 3 metrics: ";
+            for (const auto& metric : metric_buffer) {
+                notification += metric + "; ";
+            }
+            notification += "All data recorded in csv.\0";
+
+            send(ClientConn, notification.c_str(), notification.size(), 0);
+            metric_buffer.clear();
+        }
 
         if (message == "exit") {
             break;
