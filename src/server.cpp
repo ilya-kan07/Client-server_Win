@@ -10,6 +10,7 @@
 #include <chrono>
 #include <ctime>
 #include <sstream>
+#include <iomanip>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -23,16 +24,17 @@ vector<SOCKET> clients;
 mutex clients_mutex;
 mutex file_mutex;
 
-void write_to_csv(const string& timestamp, const string& metric_name, const string& value) {
+void write_to_csv(const string& client_ip, const string& timestamp, const string& metric_name, const string& value) {
     lock_guard<mutex> lock(file_mutex);
     ofstream csv_file("metrics.csv", ios::app);
+
     if (csv_file.is_open()) {
-        csv_file << timestamp << "," << metric_name << "," << value << "\n";
+        csv_file << client_ip << "," << timestamp << "," << metric_name << "," << value << "\n";
     }
     csv_file.close();
 }
 
-void handle_clients(SOCKET ClientConn) {
+void handle_clients(SOCKET ClientConn, string client_ip) {
 
     vector <char> buffer(BUFF_SIZE);
     short packet_size = 0;
@@ -48,7 +50,7 @@ void handle_clients(SOCKET ClientConn) {
         buffer[packet_size] = '\0';
 
         string message(buffer.data());
-        cout << "Received message: " << message << endl;
+        cout << "Message from client " << client_ip << ": " << message << endl;
 
         stringstream ss(message);
         string metric_name, value;
@@ -57,10 +59,12 @@ void handle_clients(SOCKET ClientConn) {
 
         auto now = chrono::system_clock::now();
         time_t now_c = chrono::system_clock::to_time_t(now);
-        string timestamp = ctime(&now_c);
-        timestamp.pop_back();
+        tm local_time;
+        localtime_s(&local_time, &now_c);
+        stringstream timestamp;
+        timestamp << put_time(&local_time, "%H:%M:%S");
 
-        write_to_csv(timestamp, metric_name, value);
+        write_to_csv(client_ip, timestamp.str(), metric_name, value);
 
         if (message == "exit") {
             break;
@@ -183,7 +187,7 @@ int main()
         clients.push_back(ClientConn);
         clients_mutex.unlock();
 
-        thread clientThread(handle_clients, ClientConn);
+        thread clientThread(handle_clients, ClientConn, string(clientIP));
         clientThread.detach();
     }
 
