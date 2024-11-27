@@ -1,10 +1,15 @@
 #include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <algorithm>
 #include <stdio.h>
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <fstream>
+#include <chrono>
+#include <ctime>
+#include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -16,6 +21,16 @@ const short BUFF_SIZE = 1024;
 
 vector<SOCKET> clients;
 mutex clients_mutex;
+mutex file_mutex;
+
+void write_to_csv(const string& timestamp, const string& metric_name, const string& value) {
+    lock_guard<mutex> lock(file_mutex);
+    ofstream csv_file("metrics.csv", ios::app);
+    if (csv_file.is_open()) {
+        csv_file << timestamp << "," << metric_name << "," << value << "\n";
+    }
+    csv_file.close();
+}
 
 void handle_clients(SOCKET ClientConn) {
 
@@ -23,7 +38,6 @@ void handle_clients(SOCKET ClientConn) {
     short packet_size = 0;
 
     while (true) {
-
         packet_size = recv(ClientConn, buffer.data(), buffer.size() - 1, 0);
 
         if (packet_size == SOCKET_ERROR || packet_size == 0) {
@@ -32,18 +46,23 @@ void handle_clients(SOCKET ClientConn) {
         }
 
         buffer[packet_size] = '\0';
-        cout << "Client's message: " << buffer.data() << endl;
 
-        clients_mutex.lock();
-        for (SOCKET client : clients) {
-            if (client != ClientConn) {
-                send(client, buffer.data(), packet_size, 0);
-            }
-        }
-        clients_mutex.unlock();
+        string message(buffer.data());
+        cout << "Received message: " << message << endl;
 
-        if (buffer[0] == 'x' && buffer[1] == 'x' && buffer[2] == 'x') {
-            cout << "Client requested disconnection." << endl;
+        stringstream ss(message);
+        string metric_name, value;
+        getline(ss, metric_name, ',');
+        getline(ss, value, ',');
+
+        auto now = chrono::system_clock::now();
+        time_t now_c = chrono::system_clock::to_time_t(now);
+        string timestamp = ctime(&now_c);
+        timestamp.pop_back();
+
+        write_to_csv(timestamp, metric_name, value);
+
+        if (message == "exit") {
             break;
         }
     }
@@ -51,6 +70,7 @@ void handle_clients(SOCKET ClientConn) {
     clients_mutex.lock();
     clients.erase(remove(clients.begin(), clients.end(), ClientConn), clients.end());
     clients_mutex.unlock();
+    closesocket(ClientConn);
 }
 
 int main()
@@ -111,7 +131,6 @@ int main()
     servInfo.sin_port = htons(1234);
 
     erStat = bind(ServSock, (sockaddr*)&servInfo, sizeof(servInfo));
-
     if (erStat != 0) {
 
         cout << "Error Socket binding to server info. Error # "
@@ -128,7 +147,6 @@ int main()
 
     // Starting to listen to any Clients
     erStat = listen(ServSock, SOMAXCONN);
-
     if (erStat != 0) {
 
         cout <<
@@ -150,7 +168,6 @@ int main()
         int clientInfo_size = sizeof(clientInfo);
 
         SOCKET ClientConn = accept(ServSock, (sockaddr*)&clientInfo, &clientInfo_size);
-
         if (ClientConn == INVALID_SOCKET) {
             cout << "Client detected, but can't connect. Error # ";
             cout << WSAGetLastError << endl;
