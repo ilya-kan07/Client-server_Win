@@ -66,6 +66,9 @@ void handle_clients(SOCKET ClientConn, string client_ip) {
 
         write_to_csv(client_ip, timestamp.str(), metric_name, value);
 
+        string notification = "[" + timestamp.str() + "] The data is received and recorded in csv.\0";
+        send(ClientConn, notification.c_str(), notification.size(), 0);
+
         if (message == "exit") {
             break;
         }

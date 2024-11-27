@@ -33,7 +33,7 @@ void sendMetrics(SOCKET ClientSock) {
             this_thread::sleep_for(chrono::milliseconds(200));
         }
 
-        this_thread::sleep_for(chrono::minutes(1));
+        this_thread::sleep_for(chrono::seconds(10));
     }
 }
 
@@ -43,17 +43,15 @@ void receiveMessages(SOCKET ClientSock) {
     short packet_size = 0;
 
     while (true) {
-
         packet_size = recv(ClientSock, buffer.data(), buffer.size() - 1, 0);
 
         if (packet_size == SOCKET_ERROR || packet_size == 0) {
-
             cout << "Connection closed or error receiving message." << endl;
             break;
         }
 
         buffer[packet_size] = '\0';
-        cout << "\nMessage from Server: " << buffer.data() << endl;
+        cout << "\n[SERVER]: " << buffer.data() << endl;
     }
 
     closesocket(ClientSock);
@@ -130,10 +128,10 @@ int main () {
         cout << "Ready to send a message to Server" << endl;
     }
 
-    //thread receiveThread(receiveMessages, ClientSock);
-    //receiveThread.detach();
-
+    thread receiveThread(receiveMessages, ClientSock);
     thread metricsThread(sendMetrics, ClientSock);
+
+    receiveThread.join();
     metricsThread.join();
 
     closesocket(ClientSock);
